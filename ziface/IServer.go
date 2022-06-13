@@ -7,4 +7,7 @@ type IServer interface {
 	Stop()
 	// run the server
 	Server()
+
+	// 路由模块
+	AddRouter(router IRouter)
 }

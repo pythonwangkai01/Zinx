@@ -3,7 +3,8 @@ package znet
 import (
 	"fmt"
 	"net"
-	"wkzinx/ziface"
+
+	"Zinx/ziface"
 )
 
 type Server struct {
@@ -15,6 +16,8 @@ type Server struct {
 	IP string
 	//服务器监听的端口
 	Port int
+	//当前server添加router
+	Router ziface.IRouter
 }
 
 //开始方法
@@ -35,6 +38,9 @@ func (s *Server) Start() {
 			return
 		}
 		fmt.Println("start Zinx server run succ:", s.Name)
+
+		var cid uint32
+		cid = 0
 		//3.阻塞的等待客户端链接,处理客户端链接业务(读写)
 		for {
 			//客户端链接过来，阻塞会返回
@@ -44,22 +50,13 @@ func (s *Server) Start() {
 				continue
 			}
 
-			//已经链接客户端，做一些业务，最基础的最大512字节回显业务
-			go func() {
-				for {
-					buf := make([]byte, 512)
-					cnt, err := conn.Read(buf)
-					if err != nil {
-						fmt.Println("conn.Read err", err)
-						continue
-					}
-					//回显
-					if _, err := conn.Write(buf[:cnt]); err != nil {
-						fmt.Println("Write buf err", err)
-						continue
-					}
-				}
-			}()
+			//将处理新链接的业务方法和conn进行绑定，得到我们的链接模块
+			dealConn := NewConnection(conn, cid, s.Router)
+			cid++
+
+			//启动
+			go dealConn.Start()
+
 		}
 	}()
 
@@ -82,6 +79,12 @@ func (s *Server) Server() {
 
 }
 
+//实现router
+func (s *Server) AddRouter(router ziface.IRouter) {
+	s.Router = router
+	fmt.Println("AddRouter succ")
+}
+
 /*
 	初始化Server
 */
@@ -89,8 +92,9 @@ func NewServer(name string) ziface.IServer {
 	s := &Server{
 		Name:      name,
 		IPVersion: "tcp4",
-		IP:        "0.0.0.0",
+		IP:        "127.0.0.1",
 		Port:      8999,
+		Router:    nil,
 	}
 	return s
 }
